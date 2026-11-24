@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "quotations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "rfqId", "order": "ASCENDING" },
+        { "fieldPath": "providerUid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quotations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "seekerUid", "order": "ASCENDING" },
+        { "fieldPath": "rfqId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

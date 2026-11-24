@@ -1,0 +1,632 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function hasCapability(userId, capability) {
+      let userPath = /databases/$(database)/documents/users/$(userId);
+      return exists(userPath)
+        && get(userPath).data.get('capabilities', []).hasAny([capability]);
+    }
+
+    function providerAddsQuotation(rfqId) {
+      let existingIds = resource.data.get('quotationIds', []);
+      let updatedIds = request.resource.data.get('quotationIds', []);
+      let quotationId = 'quote_' + rfqId + '_' + request.auth.uid;
+      let quotation = getAfter(
+        /databases/$(database)/documents/quotations/$(quotationId)
+      );
+
+      return signedIn()
+        && resource.data.providerUid == request.auth.uid
+        && resource.data.status == 'accepted'
+        && resource.data.providerDecision == 'accepted'
+        && resource.data.get('acceptedQuotationId', '') == ''
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['quotationIds', 'updatedAt'])
+        && existingIds is list
+        && updatedIds is list
+        && updatedIds.size() == existingIds.size() + 1
+        && updatedIds.hasAll(existingIds)
+        && updatedIds[updatedIds.size() - 1] == quotationId
+        && !existingIds.hasAny([quotationId])
+        && quotation.data.quotationId == quotationId
+        && quotation.data.rfqId == rfqId
+        && quotation.data.providerUid == request.auth.uid
+        && quotation.data.seekerUid == resource.data.seekerUid
+        && quotation.data.seekerCompanyId == resource.data.companyId
+        && quotation.data.status == 'submitted';
+    }
+
+    function providerDecidesRFQ(rfqId) {
+      let machinePath = /databases/$(database)/documents/machines/$(resource.data.machineId);
+      let quotationId = 'quote_' + rfqId + '_' + request.auth.uid;
+      let decision = request.resource.data.status;
+
+      return signedIn()
+        && hasCapability(request.auth.uid, 'provider')
+        && resource.data.get('providerDecision', '') == ''
+        && resource.data.providerUid == request.auth.uid
+        && resource.data.get('acceptedQuotationId', '') == ''
+        && exists(machinePath)
+        && get(machinePath).data.ownerUid == request.auth.uid
+        && resource.data.status in ['open', 'pending']
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'status', 'providerDecision', 'providerDecisionAt',
+            'providerDecisionBy', 'providerRemarks', 'rejectionReason',
+            'updatedAt'
+          ])
+        && decision in ['accepted', 'rejected']
+        && request.resource.data.providerDecision == decision
+        && request.resource.data.providerDecisionAt == request.time
+        && request.resource.data.providerDecisionBy == request.auth.uid
+        && request.resource.data.providerRemarks is string
+        && request.resource.data.rejectionReason is string
+        && request.resource.data.updatedAt == request.time
+        && resource.data.get('quotationIds', []) is list
+        && resource.data.get('quotationIds', []).size() == 0
+        && !exists(
+          /databases/$(database)/documents/quotations/$(quotationId)
+        );
+    }
+
+    function seekerAcceptsQuotation(rfqId) {
+      let quotationId = request.resource.data.get('acceptedQuotationId', '');
+      let oldStatus = resource.data.status;
+      let newStatus = request.resource.data.status;
+      let quotation = getAfter(
+        /databases/$(database)/documents/quotations/$(quotationId)
+      );
+
+      return signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && resource.data.seekerUid == request.auth.uid
+        && oldStatus in ['accepted', 'open', 'pending']
+        && resource.data.get('providerDecision', '') != 'rejected'
+        && resource.data.get('acceptedQuotationId', '') == ''
+        && (
+          (oldStatus == 'accepted' && newStatus == 'accepted')
+          || (oldStatus in ['open', 'pending'] && newStatus == 'accepted')
+        )
+        && request.resource.data.acceptedQuotationId == quotationId
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'acceptedQuotationId', 'updatedAt'])
+        && quotation.data.rfqId == rfqId
+        && quotation.data.seekerUid == request.auth.uid
+        && quotation.data.providerUid == resource.data.providerUid
+        && quotation.data.status == 'accepted';
+    }
+
+    function quotationCreateIsValid(quotationId) {
+      let data = request.resource.data;
+      let rfqPath = /databases/$(database)/documents/rfqs/$(data.rfqId);
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let companyPath = /databases/$(database)/documents/companies/$(data.providerCompanyId);
+      let rfq = get(rfqPath);
+      let updatedRfq = getAfter(rfqPath);
+      let providerUser = get(userPath);
+      let providerCompany = get(companyPath);
+
+      return signedIn()
+        && quotationId == 'quote_' + data.rfqId + '_' + request.auth.uid
+        && data.keys().hasOnly([
+          'quotationId', 'rfqId', 'rfqTitle', 'requirementTitle', 'seekerUid',
+          'seekerName', 'seekerCompanyId', 'seekerCompanyName', 'providerUid', 'providerName',
+          'providerCompanyId', 'providerCompanyName', 'machineId', 'machineName',
+          'machineCategory', 'offeredPrice', 'price', 'priceUnit',
+          'priceUnitDetails', 'estimatedDelivery', 'deliveryDays', 'deliveryDate',
+          'materialDetails', 'terms', 'additionalTerms', 'validityDate',
+          'providerRemarks', 'capacity', 'description', 'status', 'createdAt',
+          'updatedAt'
+        ])
+        && data.quotationId == quotationId
+        && data.rfqId is string
+        && exists(rfqPath)
+        && exists(userPath)
+        && exists(companyPath)
+        && rfq.data.providerUid == request.auth.uid
+        && hasCapability(request.auth.uid, 'provider')
+        && rfq.data.status == 'accepted'
+        && rfq.data.providerDecision == 'accepted'
+        && rfq.data.get('acceptedQuotationId', '') == ''
+        && data.providerUid == request.auth.uid
+        && data.seekerUid == rfq.data.seekerUid
+        && data.seekerCompanyId == rfq.data.companyId
+        && data.providerCompanyId is string
+        && data.providerCompanyId == providerUser.data.companyId
+        && data.providerCompanyName == providerCompany.data.companyName
+        && data.seekerCompanyName == rfq.data.seekerCompanyName
+        && data.seekerName == rfq.data.seekerName
+        && data.providerName == providerUser.data.fullName
+        && data.machineId == rfq.data.machineId
+        && exists(/databases/$(database)/documents/machines/$(data.machineId))
+        && get(/databases/$(database)/documents/machines/$(data.machineId)).data.ownerUid == request.auth.uid
+        && data.machineName == get(/databases/$(database)/documents/machines/$(data.machineId)).data.name
+        && data.machineCategory == get(/databases/$(database)/documents/machines/$(data.machineId)).data.category
+        && data.rfqTitle == rfq.data.title
+        && data.requirementTitle == rfq.data.title
+        && data.offeredPrice is number
+        && data.offeredPrice > 0
+        && data.price == data.offeredPrice
+        && data.priceUnit is string
+        && data.priceUnit in ['total', 'per-piece', 'per-batch', 'per-hour', 'other']
+        && data.priceUnitDetails is string
+        && (data.priceUnit != 'other' || data.priceUnitDetails.size() > 0)
+        && data.estimatedDelivery is string
+        && data.estimatedDelivery.size() > 0
+        && data.deliveryDate is string
+        && data.deliveryDate.size() > 0
+        && data.deliveryDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.materialDetails is string
+        && data.materialDetails.size() > 0
+        && data.terms is string
+        && data.additionalTerms == data.terms
+        && data.validityDate is string
+        && data.validityDate.size() > 0
+        && data.validityDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.providerRemarks is string
+        && data.capacity is string
+        && data.description is string
+        && data.deliveryDays is number
+        && data.deliveryDays > 0
+        && data.deliveryDays % 1 == 0
+        && data.status == 'submitted'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && updatedRfq.data.quotationIds.hasAny([quotationId]);
+    }
+
+    function seekerDecidesQuotation(quotationId) {
+      let rfqPath = /databases/$(database)/documents/rfqs/$(resource.data.rfqId);
+      let rfq = get(rfqPath);
+      let updatedRfq = getAfter(rfqPath);
+      let changedStatus = request.resource.data.status;
+
+      return signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && resource.data.seekerUid == request.auth.uid
+        && exists(rfqPath)
+        && rfq.data.seekerUid == request.auth.uid
+        && resource.data.providerUid == rfq.data.providerUid
+        && request.resource.data.rfqId == resource.data.rfqId
+        && request.resource.data.seekerUid == resource.data.seekerUid
+        && request.resource.data.providerUid == resource.data.providerUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'status', 'seekerDecision', 'seekerDecisionAt',
+            'seekerDecisionBy', 'rejectionReason', 'updatedAt'
+          ])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.seekerDecisionAt == request.time
+        && request.resource.data.seekerDecisionBy == request.auth.uid
+        && request.resource.data.rejectionReason is string
+        && resource.data.status in ['submitted', 'Received']
+        && (
+          (changedStatus == 'accepted'
+            && request.resource.data.seekerDecision == 'accepted'
+            && updatedRfq.data.status == 'accepted'
+            && updatedRfq.data.acceptedQuotationId == quotationId)
+          || (changedStatus == 'rejected'
+            && request.resource.data.seekerDecision == 'rejected'
+            && rfq.data.status in ['accepted', 'open', 'pending']
+            && rfq.data.get('providerDecision', '') != 'rejected'
+            && updatedRfq.data.get('acceptedQuotationId', '') == '')
+          || (changedStatus == 'not_selected'
+            && request.resource.data.seekerDecision == 'not_selected'
+            && updatedRfq.data.status == 'accepted'
+            && updatedRfq.data.get('acceptedQuotationId', '') != ''
+            && updatedRfq.data.acceptedQuotationId != quotationId)
+        );
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.companyId is string;
+      allow update: if (isOwner(userId)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.companyId == resource.data.companyId)
+        || (isAdmin()
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.companyId == resource.data.companyId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']));
+      allow delete: if false;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isAdmin() || (signedIn()
+        && (resource.data.ownerUid == request.auth.uid
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId));
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.companyName is string;
+      allow update: if signedIn()
+          && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == resource.data.ownerUid
+        || (isAdmin()
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['verificationStatus', 'updatedAt']));
+      allow delete: if false;
+    }
+
+    match /machines/{machineId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.companyId
+          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+        && request.resource.data.companyId is string
+        && request.resource.data.companyId.size() > 0
+        && request.resource.data.providerName
+          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.fullName
+        && request.resource.data.providerCompanyName
+          == get(/databases/$(database)/documents/companies/$(request.resource.data.companyId)).data.companyName
+        && request.resource.data.providerName is string
+        && request.resource.data.providerCompanyName is string
+        && request.resource.data.providerName.size() > 0
+        && request.resource.data.providerCompanyName.size() > 0
+        && request.resource.data.reviewStatus == 'Pending Review'
+        && request.resource.data.name is string
+        && request.resource.data.category is string
+        && request.resource.data.manufacturer is string
+        && request.resource.data.model is string
+        && request.resource.data.description is string
+        && request.resource.data.materials is list
+        && request.resource.data.location is string
+        && request.resource.data.hours is number
+        && request.resource.data.rate is number
+        && request.resource.data.availability is string
+        && request.resource.data.schedule is list
+        && request.resource.data.image is string
+        && request.resource.data.images is list
+        && request.resource.data.hours > 0
+        && request.resource.data.rate > 0
+        && request.resource.data.availabilityStatus == 'available'
+        && request.resource.data.availabilityUpdatedAt == request.time
+        && request.resource.data.availabilityUpdatedBy == request.auth.uid;
+      allow update: if isAdmin()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reviewStatus', 'updatedAt']);
+
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.providerName
+          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.fullName
+        && request.resource.data.providerCompanyName
+          == get(/databases/$(database)/documents/companies/$(resource.data.companyId)).data.companyName
+        && request.resource.data.get('reviewStatus', 'Pending Review')
+          == resource.data.get('reviewStatus', 'Pending Review')
+        && request.resource.data.get('availabilityStatus', 'available')
+          == resource.data.get('availabilityStatus', 'available')
+        && request.resource.data.get('availabilityUpdatedAt', null)
+          == resource.data.get('availabilityUpdatedAt', null)
+        && request.resource.data.get('availabilityUpdatedBy', '')
+          == resource.data.get('availabilityUpdatedBy', '')
+        && request.resource.data.providerName is string
+        && request.resource.data.providerCompanyName is string
+        && request.resource.data.providerName.size() > 0
+        && request.resource.data.providerCompanyName.size() > 0
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.name is string
+        && request.resource.data.category is string
+        && request.resource.data.manufacturer is string
+        && request.resource.data.model is string
+        && request.resource.data.description is string
+        && request.resource.data.materials is list
+        && request.resource.data.location is string
+        && request.resource.data.hours is number
+        && request.resource.data.rate is number
+        && request.resource.data.availability is string
+        && request.resource.data.schedule is list
+        && request.resource.data.image is string
+        && request.resource.data.images is list
+        && request.resource.data.hours > 0
+        && request.resource.data.rate > 0;
+
+      allow update: if signedIn()
+        && hasCapability(request.auth.uid, 'provider')
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'availabilityStatus', 'availabilityUpdatedAt',
+            'availabilityUpdatedBy', 'updatedAt'
+          ])
+        && request.resource.data.availabilityStatus in ['available', 'unavailable']
+        && request.resource.data.availabilityUpdatedAt == request.time
+        && request.resource.data.availabilityUpdatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /rfqs/{rfqId} {
+      allow create: if signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && request.resource.data.seekerUid == request.auth.uid
+        && request.resource.data.machineId is string
+        && exists(/databases/$(database)/documents/machines/$(request.resource.data.machineId))
+        && request.resource.data.seekerUid
+          != get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.ownerUid
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId
+          == request.resource.data.companyId
+        && request.resource.data.seekerName
+          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.fullName
+        && request.resource.data.seekerCompanyName
+          == get(/databases/$(database)/documents/companies/$(request.resource.data.companyId)).data.companyName
+        && request.resource.data.providerUid
+          == get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.ownerUid
+        && request.resource.data.providerCompanyId
+          == get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.companyId
+        && request.resource.data.providerName
+          == get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.get('providerName', '')
+        && request.resource.data.providerCompanyName
+          == get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.get('providerCompanyName', '')
+        && get(/databases/$(database)/documents/machines/$(request.resource.data.machineId)).data.get('availabilityStatus', 'available') == 'available'
+        && request.resource.data.providerName.size() > 0
+        && request.resource.data.providerCompanyName.size() > 0
+        && request.resource.data.machineName is string
+        && request.resource.data.machineName.size() > 0
+        && request.resource.data.machineCategory is string
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.materialType is string
+        && request.resource.data.materialType.size() > 0
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0
+        && request.resource.data.quantityUnit is string
+        && request.resource.data.quantityUnit.size() > 0
+        && request.resource.data.completionDate is string
+        && request.resource.data.completionDate.size() > 0
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.seekerName is string
+        && request.resource.data.seekerName.size() > 0
+        && request.resource.data.companyId is string
+        && request.resource.data.companyId.size() > 0
+        && request.resource.data.seekerCompanyName is string
+        && request.resource.data.seekerCompanyName.size() > 0
+        && request.resource.data.providerCompanyId is string
+        && request.resource.data.providerCompanyId.size() > 0
+        && request.resource.data.providerName is string
+        && request.resource.data.providerName.size() > 0
+        && request.resource.data.providerCompanyName is string
+        && request.resource.data.providerCompanyName.size() > 0
+        && request.resource.data.attachments is list
+        && request.resource.data.status in ['open', 'pending']
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (!('quotationIds' in request.resource.data)
+          || request.resource.data.quotationIds is list)
+        && (!('budget' in request.resource.data)
+          || request.resource.data.budget == null
+          || request.resource.data.budget is number);
+
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.seekerUid == request.auth.uid
+          || resource.data.providerUid == request.auth.uid);
+
+      allow update: if providerDecidesRFQ(rfqId)
+        || providerAddsQuotation(rfqId)
+        || seekerAcceptsQuotation(rfqId);
+      allow delete: if false;
+    }
+
+    match /quotations/{quotationId} {
+      allow create: if quotationCreateIsValid(quotationId);
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.providerUid == request.auth.uid
+          || resource.data.seekerUid == request.auth.uid);
+      allow update: if seekerDecidesQuotation(quotationId);
+      allow delete: if false;
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.providerUid == request.auth.uid
+          || resource.data.seekerUid == request.auth.uid);
+      allow create: if signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && bookingId == 'booking_' + request.resource.data.quotationId
+        && request.resource.data.seekerUid == request.auth.uid
+        && request.resource.data.status == 'confirmed'
+        && request.resource.data.rfqId is string
+        && request.resource.data.quotationId is string
+        && exists(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId))
+        && exists(/databases/$(database)/documents/quotations/$(request.resource.data.quotationId))
+        && getAfter(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId)).data.seekerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId)).data.acceptedQuotationId == request.resource.data.quotationId
+        && getAfter(/databases/$(database)/documents/quotations/$(request.resource.data.quotationId)).data.status == 'accepted'
+        && getAfter(/databases/$(database)/documents/quotations/$(request.resource.data.quotationId)).data.seekerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/quotations/$(request.resource.data.quotationId)).data.providerUid == request.resource.data.providerUid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /jobTracking/{trackingId} {
+      allow read: if signedIn()
+        && (isAdmin()
+          || resource.data.providerUid == request.auth.uid
+          || resource.data.seekerUid == request.auth.uid);
+      allow create: if signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && trackingId == 'tracking_' + request.resource.data.bookingId
+        && request.resource.data.seekerUid == request.auth.uid
+        && request.resource.data.bookingId is string
+        && request.resource.data.rfqId is string
+        && request.resource.data.quotationId is string
+        && request.resource.data.currentStatus == 'booking_confirmed'
+        && getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.seekerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.bookingId == request.resource.data.bookingId;
+      allow update: if signedIn()
+        && hasCapability(request.auth.uid, 'provider')
+        && resource.data.providerUid == request.auth.uid
+        && resource.data.completed != true
+        && request.resource.data.providerUid == resource.data.providerUid
+        && request.resource.data.seekerUid == resource.data.seekerUid
+        && request.resource.data.bookingId == resource.data.bookingId
+        && request.resource.data.rfqId == resource.data.rfqId
+        && request.resource.data.quotationId == resource.data.quotationId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['currentStatus', 'milestones', 'completed', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.completed is bool
+        && request.resource.data.milestones is map
+        && request.resource.data.milestones.keys().hasAll(resource.data.milestones.keys())
+        && request.resource.data.currentStatus in [
+          'booking_confirmed', 'requirements_confirmed', 'preparation_started',
+          'preparation_completed', 'dispatched', 'delivered',
+          'job_started', 'completed'
+        ];
+      allow delete: if false;
+    }
+
+    match /machineReviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && request.resource.data.reviewerUid == request.auth.uid
+        && request.resource.data.reviewerRole == 'Seeker'
+        && request.resource.data.machineId is string
+        && request.resource.data.bookingId is string
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.rating % 1 == 0
+        && request.resource.data.feedback is string
+        && request.resource.data.feedback.size() <= 1000
+        && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
+        && exists(/databases/$(database)/documents/jobTracking/tracking_$(request.resource.data.bookingId))
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.seekerUid == request.auth.uid
+        && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.machineId == request.resource.data.machineId
+        && get(/databases/$(database)/documents/jobTracking/tracking_$(request.resource.data.bookingId)).data.seekerUid == request.auth.uid
+        && (
+          get(/databases/$(database)/documents/jobTracking/tracking_$(request.resource.data.bookingId)).data.completed == true
+          || get(/databases/$(database)/documents/jobTracking/tracking_$(request.resource.data.bookingId)).data.currentStatus == 'completed'
+        )
+        && reviewId == request.resource.data.machineId + '_' + request.auth.uid + '_' + request.resource.data.bookingId;
+      allow update: if signedIn()
+        && hasCapability(request.auth.uid, 'seeker')
+        && resource.data.reviewerUid == request.auth.uid
+        && request.resource.data.reviewerUid == resource.data.reviewerUid
+        && request.resource.data.machineId == resource.data.machineId
+        && request.resource.data.bookingId == resource.data.bookingId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.feedback is string
+        && request.resource.data.feedback.size() <= 1000
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['rating', 'feedback', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.reporterUid == request.auth.uid);
+      allow create: if signedIn()
+        && (
+          hasCapability(request.auth.uid, 'seeker')
+          || hasCapability(request.auth.uid, 'provider')
+        )
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.reporterRole in ['Seeker', 'Provider']
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() > 0
+        && request.resource.data.subject.size() <= 150
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 3000
+        && request.resource.data.status == 'Pending'
+        && request.resource.data.adminNotes == ''
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.reporterUid == resource.data.reporterUid
+        && request.resource.data.reporterRole == resource.data.reporterRole
+        && request.resource.data.subject == resource.data.subject
+        && request.resource.data.description == resource.data.description
+        && request.resource.data.reportId == resource.data.reportId
+        && request.resource.data.status in ['Pending', 'Under Review', 'Resolved', 'Rejected']
+        && request.resource.data.adminNotes is string
+        && request.resource.data.adminNotes.size() <= 3000
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'adminNotes', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn()
+        && (isAdmin() || resource.data.recipientUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.recipientUid is string
+        && request.resource.data.type is string
+        && request.resource.data.title is string
+        && request.resource.data.message is string
+        && request.resource.data.read == false
+        && request.resource.data.createdAt == request.time
+        && (
+          request.resource.data.recipientUid == request.auth.uid
+          || (
+            isAdmin()
+            && request.resource.data.reportId is string
+            && exists(/databases/$(database)/documents/reports/$(request.resource.data.reportId))
+          )
+          || (
+            request.resource.data.rfqId is string
+            && exists(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId))
+            && (
+              getAfter(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId)).data.seekerUid == request.auth.uid
+              || getAfter(/databases/$(database)/documents/rfqs/$(request.resource.data.rfqId)).data.providerUid == request.auth.uid
+            )
+          )
+          || (
+            request.resource.data.bookingId is string
+            && (
+              getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.seekerUid == request.auth.uid
+              || getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.providerUid == request.auth.uid
+            )
+          )
+        );
+      allow update: if signedIn()
+        && resource.data.recipientUid == request.auth.uid
+        && request.resource.data.recipientUid == resource.data.recipientUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
+      allow delete: if false;
+    }
+  }
+}
