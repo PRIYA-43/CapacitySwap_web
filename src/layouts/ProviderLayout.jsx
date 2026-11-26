@@ -26,7 +26,6 @@ import {
   Link,
   NavLink,
   Outlet,
-  useLocation,
   useNavigate,
 } from 'react-router-dom';
 
@@ -115,9 +114,7 @@ const currentDate = new Intl.DateTimeFormat('en', {
 function ProviderLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const location = useLocation();
 
   const [userProfile, setUserProfile] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -239,7 +236,6 @@ function ProviderLayout() {
               onClick={() => {
                 setSidebarOpen(false);
                 setProfileOpen(false);
-                setNotificationsOpen(false);
               }}
               className={({ isActive }) =>
                 `provider-nav-link ${isActive ? 'active' : ''}`
@@ -298,35 +294,6 @@ function ProviderLayout() {
           </div>
 
           <div className="provider-top-actions">
-            {location.pathname !== '/provider/dashboard' && (
-              <div className="popover-anchor">
-                <button
-                  type="button"
-                  className="icon-button notification-button"
-                  onClick={() =>
-                    setNotificationsOpen((open) => !open)
-                  }
-                  aria-label="Show notifications"
-                >
-                  <Bell size={18} />
-                </button>
-
-                {notificationsOpen && (
-                  <div className="top-popover notification-popover">
-                    <strong>Recent notifications</strong>
-                    <p>No notifications yet.</p>
-
-                    <Link
-                      to="/provider/notifications"
-                      onClick={() => setNotificationsOpen(false)}
-                    >
-                      View notifications
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="popover-anchor">
               <button
                 type="button"
@@ -413,9 +380,6 @@ function ProviderLayout() {
           onClick={() => {
             if (profileOpen) setProfileOpen(false);
             if (settingsOpen) setSettingsOpen(false);
-            if (notificationsOpen) {
-              setNotificationsOpen(false);
-            }
           }}
         >
           <Outlet context={{ profile: userProfile }} />

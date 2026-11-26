@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  Bell,
   ChevronDown,
   LogOut,
   Menu,
@@ -39,7 +38,6 @@ function SeekerHeader({ onMenuClick }) {
     : new URLSearchParams(location.search).get('search') || '';
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState(() =>
     window.localStorage.getItem('capacityswap-theme') || 'light'
@@ -160,32 +158,6 @@ function SeekerHeader({ onMenuClick }) {
       </span>
 
       <div className="provider-top-actions">
-        {location.pathname !== '/seeker/dashboard' && (
-          <div className="popover-anchor">
-            <button
-              type="button"
-              className="icon-button notification-button"
-              onClick={() => setNotificationsOpen((open) => !open)}
-              aria-label="Show notifications"
-            >
-              <Bell size={18} />
-            </button>
-
-            {notificationsOpen && (
-              <div className="top-popover notification-popover">
-                <strong>Notifications</strong>
-                <p>No notifications yet.</p>
-                <Link
-                  to="/seeker/notifications"
-                  onClick={() => setNotificationsOpen(false)}
-                >
-                  View notifications
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="popover-anchor">
           <button
             type="button"
