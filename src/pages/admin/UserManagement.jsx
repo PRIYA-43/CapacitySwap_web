@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Eye, Search, ShieldOff, ShieldCheck } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import AdminDataTable from '../../components/admin/AdminDataTable';
-import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import StatusBadge from '../../components/admin/StatusBadge';
-import { updateUserStatus } from '../../services/adminService';
 
 function UserManagement() {
   const { data, loading, error: dataError } = useOutletContext();
@@ -12,8 +10,6 @@ function UserManagement() {
   const [role, setRole] = useState('All account types');
   const [status, setStatus] = useState('All statuses');
   const [selected, setSelected] = useState(null);
-  const [pending, setPending] = useState(null);
-  const [actionError, setActionError] = useState('');
   const search = params.get('search') || '';
 
   const visible = useMemo(() => data.users.filter((user) => {
@@ -21,17 +17,6 @@ function UserManagement() {
     const matchesSearch = !term || [user.id, user.name, user.email, user.company].some((value) => value.toLowerCase().includes(term));
     return matchesSearch && (role === 'All account types' || user.role === role) && (status === 'All statuses' || user.status === status);
   }), [data.users, search, role, status]);
-
-  const updateStatus = async () => {
-    try {
-      setActionError('');
-      await updateUserStatus(pending.id, pending.nextStatus);
-      setPending(null);
-    } catch (error) {
-      console.error('User status update failed:', error);
-      setActionError(error.message || 'Unable to update this account.');
-    }
-  };
 
   const columns = [
     { key: 'id', label: 'User ID' },
@@ -44,7 +29,6 @@ function UserManagement() {
     { key: 'status', label: 'Status', render: (user) => <StatusBadge status={user.status} /> },
     { key: 'actions', label: 'Actions', sortable: false, render: (user) => <div className="admin-row-actions">
       <button type="button" className="admin-icon-action" onClick={() => setSelected(user)} aria-label={`View ${user.name}`} title="View details"><Eye size={15} /></button>
-      <button type="button" className={`admin-icon-action ${user.status === 'Suspended' ? 'positive' : 'negative'}`} onClick={() => setPending({ id: user.id, name: user.name, nextStatus: user.status === 'Suspended' ? 'Active' : 'Suspended' })} aria-label={`${user.status === 'Suspended' ? 'Activate' : 'Suspend'} ${user.name}`} title={user.status === 'Suspended' ? 'Activate' : 'Suspend'}>{user.status === 'Suspended' ? <ShieldCheck size={15} /> : <ShieldOff size={15} />}</button>
     </div> },
   ];
 
@@ -52,7 +36,6 @@ function UserManagement() {
     <div className="admin-page">
       <PageHeading eyebrow="ACCOUNT DIRECTORY" title="User management" subtitle="Review account details, roles, and account status." />
       {dataError && <p className="field-error" role="alert">{dataError}</p>}
-      {actionError && <p className="field-error" role="alert">{actionError}</p>}
       {loading && <p>Loading user records...</p>}
       <section className="admin-panel">
         <div className="admin-toolbar">
@@ -68,7 +51,6 @@ function UserManagement() {
         <h3 className="admin-modal-subheading">Recent user activity</h3><ul className="admin-activity-list">{selected.activity.map((item) => <li key={item}>{item}</li>)}</ul>
       </AdminModal>}
 
-      {pending && <ConfirmationModal title={`${pending.nextStatus === 'Active' ? 'Activate' : 'Suspend'} user account?`} message={`${pending.name}'s account status will be updated.`} confirmLabel={pending.nextStatus === 'Active' ? 'Activate account' : 'Suspend account'} tone={pending.nextStatus === 'Suspended' ? 'danger' : 'default'} onConfirm={updateStatus} onClose={() => setPending(null)} />}
     </div>
   );
 }

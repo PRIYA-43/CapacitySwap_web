@@ -431,46 +431,6 @@ function ProviderDashboard() {
         </article>
       </section>
 
-      <section
-        className="dashboard-anchor-grid"
-        aria-label="More provider workspace areas"
-      >
-        <article id="quotations" className="anchor-panel">
-          <FileText size={17} />
-
-          <div>
-            <strong>Quotations</strong>
-            <span>
-              {quotations.length} live quotation{quotations.length === 1 ? '' : 's'} ·{' '}
-              <Link to="/provider/quotations">View quotations</Link>
-            </span>
-          </div>
-        </article>
-
-        <article id="notifications" className="anchor-panel">
-          <Activity size={17} />
-
-          <div>
-            <strong>Notifications</strong>
-            <span>No notifications yet.</span>
-          </div>
-        </article>
-
-        <article id="company-profile" className="anchor-panel">
-          <BriefcaseBusiness size={17} />
-
-          <div>
-            <strong>Company Profile</strong>
-            <span>
-              {profileLoading
-                ? 'Loading company information...'
-                : `${companyName} · Provider workspace`}
-            </span>
-          </div>
-        </article>
-
-      </section>
-
     </div>
   );
 }

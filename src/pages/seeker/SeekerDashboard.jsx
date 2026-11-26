@@ -335,24 +335,6 @@ function SeekerDashboard() {
         )}
       </section>
 
-      {/* Recent bookings */}
-      <section className="provider-panel dashboard-section">
-        <div className="panel-heading">
-          <div>
-            <h2>Recent bookings</h2>
-            <p>
-              Bookings linked to your manufacturing requests.
-            </p>
-          </div>
-
-          <Link className="subtle-link" to="/seeker/bookings">
-            View bookings <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        <p>No booking records yet.</p>
-      </section>
-
       {/* Workspace settings */}
       <section
         className="provider-panel seeker-settings-panel"

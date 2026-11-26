@@ -52,7 +52,7 @@ function CompanyVerification() {
       key: 'status',
       label: 'Status',
       render: (company) => (
-        <StatusBadge status={company.status} />
+        <StatusBadge status={displayStatus(company.status)} />
       ),
     },
     {
@@ -138,13 +138,19 @@ function CompanyVerification() {
             <dt>Registered date</dt><dd>{selected.registered || '—'}</dd>
             <dt>Location</dt><dd>{selected.city || 'Not provided'}</dd>
             <dt>Account role</dt><dd>{selected.role || '—'}</dd>
-            <dt>Verification status</dt><dd>{selected.status || '—'}</dd>
+            <dt>Verification status</dt><dd>{displayStatus(selected.status) || '—'}</dd>
             <dt>Description</dt><dd>{selected.description || 'Not provided'}</dd>
           </dl>
         </AdminModal>
       )}
     </div>
   );
+}
+
+function displayStatus(status) {
+  return String(status || '').toLowerCase() === 'active'
+    ? 'Active'
+    : status;
 }
 
 export default CompanyVerification;

@@ -1631,6 +1631,117 @@
   }
 }
 
+.company-profile-page {
+  --deep-navy: #1e293b;
+  --deep-plum: #172b45;
+  --dusty-berry: #1e293b;
+  --champagne: #e8dcc5;
+  --cream: #f7f1e7;
+  --off-white: #fffcf7;
+  --light-lavender: #e8dcc5;
+  --ink: #172b45;
+  --muted: #64748b;
+  --line: #e6d9c6;
+  --panel: #fffcf7;
+  color: #172b45;
+  background: #f7f1e7;
+}
+
+.company-profile-page .dashboard-heading h1,
+.company-profile-page .seeker-profile-overview h2,
+.company-profile-page .seeker-profile-edit-header h2 {
+  color: #172b45;
+}
+
+.company-profile-page .dashboard-heading p,
+.company-profile-page .eyebrow-label,
+.company-profile-page .seeker-profile-overview p,
+.company-profile-page .seeker-profile-value small,
+.company-profile-page .seeker-profile-description > span,
+.company-profile-page .seeker-profile-logo-row > small {
+  color: #64748b;
+}
+
+.company-profile-page .seeker-profile-card,
+.company-profile-page .seeker-profile-form {
+  border-color: #e6d9c6;
+  background: #fffcf7;
+}
+
+.company-profile-page .seeker-profile-cover {
+  background: linear-gradient(110deg, #1e293b, #1f2d3d);
+}
+
+.company-profile-page .seeker-company-logo {
+  border-color: #fffcf7;
+  background: #e8dcc5;
+  color: #1e293b;
+}
+
+.company-profile-page .seeker-profile-value,
+.company-profile-page .seeker-profile-description {
+  border-color: #e6d9c6;
+}
+
+.company-profile-page .seeker-profile-value-icon {
+  background: #e8dcc5;
+  color: #1e293b;
+}
+
+.company-profile-page .seeker-profile-value strong {
+  color: #172b45;
+}
+
+.company-profile-page .seeker-icon-text-button,
+.company-profile-page .seeker-logo-upload {
+  color: #1e293b;
+}
+
+.company-profile-page .seeker-icon-text-button:hover,
+.company-profile-page .seeker-logo-upload:hover {
+  color: #172b45;
+}
+
+.company-profile-page .seeker-field > span {
+  color: #172b45;
+}
+
+.company-profile-page .seeker-field input,
+.company-profile-page .seeker-field select,
+.company-profile-page .seeker-field textarea {
+  border-color: #e6d9c6;
+  background: #fffcf7;
+  color: #172b45;
+}
+
+.company-profile-page .seeker-field input:focus,
+.company-profile-page .seeker-field select:focus,
+.company-profile-page .seeker-field textarea:focus {
+  border-color: #1e293b;
+  box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.1);
+}
+
+.company-profile-page .seeker-profile-form .seeker-form-footer {
+  border-color: #e6d9c6;
+  background: #f7f1e7;
+}
+
+.company-profile-page .btn-primary {
+  background: #1e293b;
+  color: #fffcf7;
+  box-shadow: 0 8px 18px rgba(30, 41, 59, 0.16);
+}
+
+.company-profile-page .btn-primary:hover {
+  background: #1f2d3d;
+}
+
+.company-profile-page .btn-ghost {
+  border-color: #e6d9c6;
+  background: #fffcf7;
+  color: #172b45;
+}
+
 .seeker-app {
   background:
     radial-gradient(ellipse at 82% 0%, rgba(107, 42, 134, 0.2), transparent 34%),

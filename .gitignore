@@ -32,3 +32,5 @@ dist-ssr
 
 # Firebase Admin SDK credentials
 *firebase-adminsdk*
+
+public/firebase-messaging-sw.js

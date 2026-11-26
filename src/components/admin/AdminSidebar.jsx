@@ -19,7 +19,7 @@ import { logoutUser } from '../../services/authService';
 const links = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard, end: true },
   { label: 'User Management', to: '/admin/users', icon: Users },
-  { label: 'Company Verification', to: '/admin/companies', icon: ShieldCheck },
+  { label: 'Company Management', to: '/admin/companies', icon: ShieldCheck },
   { label: 'Machine Management', to: '/admin/machines', icon: Wrench },
   { label: 'RFQ Management', to: '/admin/rfqs', icon: ClipboardList },
   { label: 'Booking Management', to: '/admin/bookings', icon: CalendarDays },

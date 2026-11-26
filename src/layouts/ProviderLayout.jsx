@@ -26,6 +26,7 @@ import {
   Link,
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
 } from 'react-router-dom';
 
@@ -116,6 +117,7 @@ function ProviderLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const location = useLocation();
 
   const [userProfile, setUserProfile] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -296,32 +298,34 @@ function ProviderLayout() {
           </div>
 
           <div className="provider-top-actions">
-            <div className="popover-anchor">
-              <button
-                type="button"
-                className="icon-button notification-button"
-                onClick={() =>
-                  setNotificationsOpen((open) => !open)
-                }
-                aria-label="Show notifications"
-              >
-                <Bell size={18} />
-              </button>
+            {location.pathname !== '/provider/dashboard' && (
+              <div className="popover-anchor">
+                <button
+                  type="button"
+                  className="icon-button notification-button"
+                  onClick={() =>
+                    setNotificationsOpen((open) => !open)
+                  }
+                  aria-label="Show notifications"
+                >
+                  <Bell size={18} />
+                </button>
 
-              {notificationsOpen && (
-                <div className="top-popover notification-popover">
-                  <strong>Recent notifications</strong>
-                  <p>No notifications yet.</p>
+                {notificationsOpen && (
+                  <div className="top-popover notification-popover">
+                    <strong>Recent notifications</strong>
+                    <p>No notifications yet.</p>
 
-                  <Link
-                    to="/provider/notifications"
-                    onClick={() => setNotificationsOpen(false)}
-                  >
-                    View notifications
-                  </Link>
-                </div>
-              )}
-            </div>
+                    <Link
+                      to="/provider/notifications"
+                      onClick={() => setNotificationsOpen(false)}
+                    >
+                      View notifications
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="popover-anchor">
               <button

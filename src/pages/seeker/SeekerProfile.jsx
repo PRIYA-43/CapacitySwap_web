@@ -240,14 +240,14 @@ function SeekerProfile() {
 
   if (loading) {
     return (
-      <div className="seeker-page">
+      <div className="seeker-page company-profile-page">
         <p>Loading your company profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="seeker-page">
+    <div className="seeker-page company-profile-page">
       <div className="dashboard-heading">
         <div>
           <span className="eyebrow-label">BUSINESS INFORMATION</span>

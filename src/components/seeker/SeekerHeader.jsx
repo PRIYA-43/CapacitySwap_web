@@ -160,30 +160,31 @@ function SeekerHeader({ onMenuClick }) {
       </span>
 
       <div className="provider-top-actions">
-        {/* Notifications */}
-        <div className="popover-anchor">
-          <button
-            type="button"
-            className="icon-button notification-button"
-            onClick={() => setNotificationsOpen((open) => !open)}
-            aria-label="Show notifications"
-          >
-            <Bell size={18} />
-          </button>
+        {location.pathname !== '/seeker/dashboard' && (
+          <div className="popover-anchor">
+            <button
+              type="button"
+              className="icon-button notification-button"
+              onClick={() => setNotificationsOpen((open) => !open)}
+              aria-label="Show notifications"
+            >
+              <Bell size={18} />
+            </button>
 
-          {notificationsOpen && (
-            <div className="top-popover notification-popover">
-              <strong>Notifications</strong>
-              <p>No notifications yet.</p>
-              <Link
-                to="/seeker/notifications"
-                onClick={() => setNotificationsOpen(false)}
-              >
-                View notifications
-              </Link>
-            </div>
-          )}
-        </div>
+            {notificationsOpen && (
+              <div className="top-popover notification-popover">
+                <strong>Notifications</strong>
+                <p>No notifications yet.</p>
+                <Link
+                  to="/seeker/notifications"
+                  onClick={() => setNotificationsOpen(false)}
+                >
+                  View notifications
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="popover-anchor">
           <button

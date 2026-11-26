@@ -1,11 +1,9 @@
 
 import { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Eye, PauseCircle } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import AdminDataTable from '../../components/admin/AdminDataTable';
-import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import StatusBadge from '../../components/admin/StatusBadge';
-import { updateMachineReviewStatus } from '../../services/adminService';
 import { AdminModal, PageHeading } from './UserManagement';
 
 function MachineManagement() {
@@ -16,8 +14,6 @@ function MachineManagement() {
   const [provider, setProvider] = useState('All providers');
   const [status, setStatus] = useState('All listing statuses');
   const [selected, setSelected] = useState(null);
-  const [pending, setPending] = useState(null);
-  const [actionError, setActionError] = useState('');
 
   const providers = [
     ...new Set(data.machines.map((machine) => machine.provider).filter(Boolean)),
@@ -52,23 +48,6 @@ function MachineManagement() {
       }),
     [data.machines, search, category, provider, status]
   );
-
-  const applyAction = async () => {
-    if (!pending) return;
-
-    try {
-      setActionError('');
-
-      await updateMachineReviewStatus(pending.id, pending.nextStatus);
-
-      setPending(null);
-    } catch (error) {
-      console.error('Machine status update failed:', error);
-      setActionError(
-        error.message || 'Unable to update machine status.'
-      );
-    }
-  };
 
   const columns = [
     {
@@ -110,7 +89,7 @@ function MachineManagement() {
       key: 'status',
       label: 'Listing Status',
       render: (machine) => (
-        <StatusBadge status={machine.status} />
+        <StatusBadge status={displayStatus(machine.status)} />
       ),
     },
     {
@@ -128,24 +107,6 @@ function MachineManagement() {
           >
             <Eye size={15} />
           </button>
-
-          {machine.status !== 'Suspended' && (
-            <button
-              type="button"
-              className="admin-icon-action"
-              onClick={() =>
-                setPending({
-                  id: machine.id,
-                  name: machine.name,
-                  nextStatus: 'Suspended',
-                })
-              }
-              aria-label={`Suspend ${machine.name}`}
-              title="Suspend listing"
-            >
-              <PauseCircle size={15} />
-            </button>
-          )}
         </div>
       ),
     },
@@ -162,12 +123,6 @@ function MachineManagement() {
       {dataError && (
         <p className="field-error" role="alert">
           {dataError}
-        </p>
-      )}
-
-      {actionError && (
-        <p className="field-error" role="alert">
-          {actionError}
         </p>
       )}
 
@@ -277,7 +232,7 @@ function MachineManagement() {
 
             <dt>Listing status</dt>
             <dd>
-              <StatusBadge status={selected.status} />
+              <StatusBadge status={displayStatus(selected.status)} />
             </dd>
 
             <dt>Materials</dt>
@@ -291,18 +246,14 @@ function MachineManagement() {
         </AdminModal>
       )}
 
-      {pending && (
-        <ConfirmationModal
-          title="Suspend this listing?"
-          message={`${pending.name} will be marked Suspended and will no longer be treated as an active listing.`}
-          confirmLabel="Suspend listing"
-          tone="danger"
-          onConfirm={applyAction}
-          onClose={() => setPending(null)}
-        />
-      )}
     </div>
   );
+}
+
+function displayStatus(status) {
+  return String(status || '').toLowerCase() === 'active'
+    ? 'Active'
+    : status;
 }
 
 export default MachineManagement;
