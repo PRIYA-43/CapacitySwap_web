@@ -3,29 +3,37 @@ import { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import AdminDataTable from '../../components/admin/AdminDataTable';
-import StatusBadge from '../../components/admin/StatusBadge';
 import { AdminModal, PageHeading } from './UserManagement';
 
-const verificationStatuses = [
-  'All statuses',
-  'Pending Verification',
-  'Verified',
-  'Rejected',
-  'Information Requested',
-];
+const companyStatuses = ['All Companies', 'Active', 'Inactive'];
 
 function CompanyVerification() {
   const { data, loading, error: dataError } = useOutletContext();
 
-  const [status, setStatus] = useState('All statuses');
+  const [status, setStatus] = useState('All Companies');
   const [selected, setSelected] = useState(null);
 
-  const visible = useMemo(() => {
-    return data.companies.filter(
-      (company) =>
-        status === 'All statuses' || company.status === status
-    );
-  }, [data.companies, status]);
+  const companies = useMemo(
+    () =>
+      data.companies.map((company) => {
+        const owner = data.users.find((user) => user.uid === company.ownerUid);
+        const accountStatus =
+          String(owner?.status || '').toLowerCase() === 'active'
+            ? 'Active'
+            : 'Inactive';
+
+        return { ...company, accountStatus };
+      }),
+    [data.companies, data.users]
+  );
+  const visible = useMemo(
+    () =>
+      companies.filter(
+        (company) =>
+          status === 'All Companies' || company.accountStatus === status
+      ),
+    [companies, status]
+  );
 
   const columns = [
     {
@@ -52,7 +60,7 @@ function CompanyVerification() {
       key: 'status',
       label: 'Status',
       render: (company) => (
-        <StatusBadge status={displayStatus(company.status)} />
+        <CompanyStatusBadge status={company.accountStatus} />
       ),
     },
     {
@@ -79,8 +87,8 @@ function CompanyVerification() {
     <div className="admin-page">
       <PageHeading
         eyebrow="REGISTERED BUSINESSES"
-        title="Company verification"
-        subtitle="View registered companies and their submitted business information."
+        title="Company Management"
+        subtitle="View registered companies and their account status."
       />
 
       {dataError && (
@@ -96,7 +104,7 @@ function CompanyVerification() {
         role="tablist"
         aria-label="Company status filter"
       >
-        {verificationStatuses.map((item) => (
+        {companyStatuses.map((item) => (
           <button
             key={item}
             type="button"
@@ -107,11 +115,10 @@ function CompanyVerification() {
           >
             {item}
             <span>
-              {item === 'All statuses'
-                ? data.companies.length
-                : data.companies.filter(
-                    (company) => company.status === item
-                  ).length}
+              {item === 'All Companies'
+                ? companies.length
+                : companies.filter((company) => company.accountStatus === item)
+                    .length}
             </span>
           </button>
         ))}
@@ -138,7 +145,7 @@ function CompanyVerification() {
             <dt>Registered date</dt><dd>{selected.registered || '—'}</dd>
             <dt>Location</dt><dd>{selected.city || 'Not provided'}</dd>
             <dt>Account role</dt><dd>{selected.role || '—'}</dd>
-            <dt>Verification status</dt><dd>{displayStatus(selected.status) || '—'}</dd>
+            <dt>Account status</dt><dd><CompanyStatusBadge status={selected.accountStatus} /></dd>
             <dt>Description</dt><dd>{selected.description || 'Not provided'}</dd>
           </dl>
         </AdminModal>
@@ -147,10 +154,14 @@ function CompanyVerification() {
   );
 }
 
-function displayStatus(status) {
-  return String(status || '').toLowerCase() === 'active'
-    ? 'Active'
-    : status;
+function CompanyStatusBadge({ status }) {
+  const tone = status === 'Active' ? 'success' : 'neutral';
+
+  return (
+    <span className={`admin-status-badge admin-status-${tone}`}>
+      {status}
+    </span>
+  );
 }
 
 export default CompanyVerification;
